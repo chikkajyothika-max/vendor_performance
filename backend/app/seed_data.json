@@ -1,0 +1,1001 @@
+{
+  "dashboard": {
+    "user": {
+      "id": "usr-admin",
+      "name": "Alex Morgan",
+      "email": "admin@vendorsync.ai",
+      "role": "admin",
+      "created_at": "2026-10-07T15:58:56.020504+00:00"
+    },
+    "vendors": [
+      {
+        "id": "V-1048",
+        "name": "Northstar Components",
+        "category": "Electronics",
+        "email": "hello@northstar.co",
+        "location": "Austin, TX",
+        "status": "Active",
+        "score": 92,
+        "risk_score": 12,
+        "risk": "Low",
+        "delivery": 96,
+        "quality": 94,
+        "cost": 87,
+        "reliability": 91,
+        "orders": 148,
+        "delayed": 6,
+        "complaints": 2,
+        "defects": 3,
+        "trend": [
+          84,
+          86,
+          88,
+          90,
+          91,
+          92
+        ]
+      },
+      {
+        "id": "V-1021",
+        "name": "Meridian Office Supply",
+        "category": "Stationery",
+        "email": "ops@meridian.co",
+        "location": "Chicago, IL",
+        "status": "Active",
+        "score": 78,
+        "risk_score": 38,
+        "risk": "Medium",
+        "delivery": 81,
+        "quality": 82,
+        "cost": 88,
+        "reliability": 76,
+        "orders": 96,
+        "delayed": 18,
+        "complaints": 7,
+        "defects": 8,
+        "trend": [
+          74,
+          76,
+          77,
+          75,
+          79,
+          78
+        ]
+      },
+      {
+        "id": "V-1103",
+        "name": "Pinnacle Industrial",
+        "category": "Equipment",
+        "email": "team@pinnacle.io",
+        "location": "Detroit, MI",
+        "status": "Review",
+        "score": 61,
+        "risk_score": 67,
+        "risk": "High",
+        "delivery": 64,
+        "quality": 68,
+        "cost": 72,
+        "reliability": 59,
+        "orders": 74,
+        "delayed": 27,
+        "complaints": 15,
+        "defects": 14,
+        "trend": [
+          72,
+          69,
+          66,
+          64,
+          63,
+          61
+        ]
+      },
+      {
+        "id": "V-0977",
+        "name": "Atlas Packaging",
+        "category": "Packaging",
+        "email": "sales@atlaspack.com",
+        "location": "Portland, OR",
+        "status": "Active",
+        "score": 86,
+        "risk_score": 24,
+        "risk": "Low",
+        "delivery": 89,
+        "quality": 91,
+        "cost": 80,
+        "reliability": 84,
+        "orders": 121,
+        "delayed": 9,
+        "complaints": 4,
+        "defects": 5,
+        "trend": [
+          79,
+          81,
+          83,
+          84,
+          85,
+          86
+        ]
+      },
+      {
+        "id": "V-1132",
+        "name": "BluePeak Logistics",
+        "category": "Logistics",
+        "email": "care@bluepeak.com",
+        "location": "Nashville, TN",
+        "status": "Active",
+        "score": 73,
+        "risk_score": 47,
+        "risk": "Medium",
+        "delivery": 76,
+        "quality": 79,
+        "cost": 74,
+        "reliability": 70,
+        "orders": 88,
+        "delayed": 19,
+        "complaints": 9,
+        "defects": 11,
+        "trend": [
+          70,
+          71,
+          73,
+          72,
+          74,
+          73
+        ]
+      },
+      {
+        "id": "V-1D20",
+        "name": "UI Regression Vendor",
+        "category": "Electronics",
+        "email": "ui-regression@example.com",
+        "location": "Boston, MA",
+        "contract_value": 100000.0,
+        "status": "Active",
+        "score": 70,
+        "risk_score": 50,
+        "risk": "Medium",
+        "delivery": 70,
+        "quality": 70,
+        "cost": 70,
+        "reliability": 70,
+        "orders": 0,
+        "delayed": 0,
+        "complaints": 0,
+        "defects": 0,
+        "trend": [
+          70,
+          70,
+          70,
+          70,
+          70,
+          70
+        ]
+      },
+      {
+        "id": "V-DA00",
+        "name": "UI Regression Vendor 2",
+        "category": "Electronics",
+        "email": "ui-regression2@example.com",
+        "location": "United States",
+        "contract_value": 100000.0,
+        "status": "Active",
+        "score": 70,
+        "risk_score": 50,
+        "risk": "Medium",
+        "delivery": 70,
+        "quality": 70,
+        "cost": 70,
+        "reliability": 70,
+        "orders": 0,
+        "delayed": 0,
+        "complaints": 0,
+        "defects": 0,
+        "trend": [
+          70,
+          70,
+          70,
+          70,
+          70,
+          70
+        ]
+      }
+    ],
+    "orders": [
+      {
+        "id": "PO-4801",
+        "vendor_id": "V-1048",
+        "vendor": "Northstar Components",
+        "category": "Electronics",
+        "amount": 13375,
+        "date": "2025-02-02",
+        "status": "Delivered"
+      },
+      {
+        "id": "PO-4802",
+        "vendor_id": "V-1021",
+        "vendor": "Meridian Office Supply",
+        "category": "Stationery",
+        "amount": 14750,
+        "date": "2025-03-03",
+        "status": "Delivered"
+      },
+      {
+        "id": "PO-4803",
+        "vendor_id": "V-1103",
+        "vendor": "Pinnacle Industrial",
+        "category": "Equipment",
+        "amount": 16125,
+        "date": "2025-04-04",
+        "status": "Delivered"
+      },
+      {
+        "id": "PO-4804",
+        "vendor_id": "V-0977",
+        "vendor": "Atlas Packaging",
+        "category": "Packaging",
+        "amount": 17500,
+        "date": "2025-05-05",
+        "status": "Delayed"
+      },
+      {
+        "id": "PO-4805",
+        "vendor_id": "V-1132",
+        "vendor": "BluePeak Logistics",
+        "category": "Logistics",
+        "amount": 18875,
+        "date": "2025-06-06",
+        "status": "Delivered"
+      },
+      {
+        "id": "PO-4806",
+        "vendor_id": "V-1048",
+        "vendor": "Northstar Components",
+        "category": "Electronics",
+        "amount": 20250,
+        "date": "2025-07-07",
+        "status": "Delivered"
+      },
+      {
+        "id": "PO-4807",
+        "vendor_id": "V-1021",
+        "vendor": "Meridian Office Supply",
+        "category": "Stationery",
+        "amount": 21625,
+        "date": "2025-08-08",
+        "status": "Delivered"
+      },
+      {
+        "id": "PO-4808",
+        "vendor_id": "V-1103",
+        "vendor": "Pinnacle Industrial",
+        "category": "Equipment",
+        "amount": 23000,
+        "date": "2025-09-09",
+        "status": "Delayed"
+      },
+      {
+        "id": "PO-4809",
+        "vendor_id": "V-0977",
+        "vendor": "Atlas Packaging",
+        "category": "Packaging",
+        "amount": 24375,
+        "date": "2025-01-10",
+        "status": "Delivered"
+      },
+      {
+        "id": "PO-4810",
+        "vendor_id": "V-1132",
+        "vendor": "BluePeak Logistics",
+        "category": "Logistics",
+        "amount": 25750,
+        "date": "2025-02-11",
+        "status": "Delivered"
+      },
+      {
+        "id": "PO-4811",
+        "vendor_id": "V-1048",
+        "vendor": "Northstar Components",
+        "category": "Electronics",
+        "amount": 27125,
+        "date": "2025-03-12",
+        "status": "Delivered"
+      },
+      {
+        "id": "PO-4812",
+        "vendor_id": "V-1021",
+        "vendor": "Meridian Office Supply",
+        "category": "Stationery",
+        "amount": 28500,
+        "date": "2025-04-13",
+        "status": "Delayed"
+      },
+      {
+        "id": "PO-4813",
+        "vendor_id": "V-1103",
+        "vendor": "Pinnacle Industrial",
+        "category": "Equipment",
+        "amount": 29875,
+        "date": "2025-05-14",
+        "status": "Delivered"
+      },
+      {
+        "id": "PO-4814",
+        "vendor_id": "V-0977",
+        "vendor": "Atlas Packaging",
+        "category": "Packaging",
+        "amount": 31250,
+        "date": "2025-06-15",
+        "status": "Delivered"
+      },
+      {
+        "id": "PO-4815",
+        "vendor_id": "V-1132",
+        "vendor": "BluePeak Logistics",
+        "category": "Logistics",
+        "amount": 32625,
+        "date": "2025-07-16",
+        "status": "Delivered"
+      }
+    ],
+    "stats": {
+      "vendors": 7,
+      "low": 2,
+      "medium": 4,
+      "high": 1,
+      "orders": 15
+    },
+    "monthly": [
+      {
+        "month": "Jan",
+        "score": 74
+      },
+      {
+        "month": "Feb",
+        "score": 78
+      },
+      {
+        "month": "Mar",
+        "score": 76
+      },
+      {
+        "month": "Apr",
+        "score": 82
+      },
+      {
+        "month": "May",
+        "score": 85
+      },
+      {
+        "month": "Jun",
+        "score": 88
+      }
+    ]
+  },
+  "vendors": {
+    "V-1048": {
+      "vendor": {
+        "id": "V-1048",
+        "name": "Northstar Components",
+        "category": "Electronics",
+        "email": "hello@northstar.co",
+        "location": "Austin, TX",
+        "status": "Active",
+        "score": 92,
+        "risk_score": 12,
+        "risk": "Low",
+        "delivery": 96,
+        "quality": 94,
+        "cost": 87,
+        "reliability": 91,
+        "orders": 148,
+        "delayed": 6,
+        "complaints": 2,
+        "defects": 3,
+        "trend": [
+          84,
+          86,
+          88,
+          90,
+          91,
+          92
+        ]
+      },
+      "history": [
+        {
+          "month": "Jan",
+          "score": 84,
+          "delivery": 82,
+          "quality": 86
+        },
+        {
+          "month": "Feb",
+          "score": 86,
+          "delivery": 84,
+          "quality": 88
+        },
+        {
+          "month": "Mar",
+          "score": 88,
+          "delivery": 86,
+          "quality": 90
+        },
+        {
+          "month": "Apr",
+          "score": 90,
+          "delivery": 88,
+          "quality": 92
+        },
+        {
+          "month": "May",
+          "score": 91,
+          "delivery": 89,
+          "quality": 93
+        },
+        {
+          "month": "Jun",
+          "score": 92,
+          "delivery": 90,
+          "quality": 94
+        }
+      ],
+      "notes": [],
+      "orders": [
+        {
+          "id": "PO-4806",
+          "vendor_id": "V-1048",
+          "vendor": "Northstar Components",
+          "category": "Electronics",
+          "amount": 20250,
+          "date": "2025-07-07",
+          "status": "Delivered"
+        },
+        {
+          "id": "PO-4811",
+          "vendor_id": "V-1048",
+          "vendor": "Northstar Components",
+          "category": "Electronics",
+          "amount": 27125,
+          "date": "2025-03-12",
+          "status": "Delivered"
+        },
+        {
+          "id": "PO-4801",
+          "vendor_id": "V-1048",
+          "vendor": "Northstar Components",
+          "category": "Electronics",
+          "amount": 13375,
+          "date": "2025-02-02",
+          "status": "Delivered"
+        }
+      ]
+    },
+    "V-1021": {
+      "vendor": {
+        "id": "V-1021",
+        "name": "Meridian Office Supply",
+        "category": "Stationery",
+        "email": "ops@meridian.co",
+        "location": "Chicago, IL",
+        "status": "Active",
+        "score": 78,
+        "risk_score": 38,
+        "risk": "Medium",
+        "delivery": 81,
+        "quality": 82,
+        "cost": 88,
+        "reliability": 76,
+        "orders": 96,
+        "delayed": 18,
+        "complaints": 7,
+        "defects": 8,
+        "trend": [
+          74,
+          76,
+          77,
+          75,
+          79,
+          78
+        ]
+      },
+      "history": [
+        {
+          "month": "Jan",
+          "score": 74,
+          "delivery": 72,
+          "quality": 76
+        },
+        {
+          "month": "Feb",
+          "score": 76,
+          "delivery": 74,
+          "quality": 78
+        },
+        {
+          "month": "Mar",
+          "score": 77,
+          "delivery": 75,
+          "quality": 79
+        },
+        {
+          "month": "Apr",
+          "score": 75,
+          "delivery": 73,
+          "quality": 77
+        },
+        {
+          "month": "May",
+          "score": 79,
+          "delivery": 77,
+          "quality": 81
+        },
+        {
+          "month": "Jun",
+          "score": 78,
+          "delivery": 76,
+          "quality": 80
+        }
+      ],
+      "notes": [],
+      "orders": [
+        {
+          "id": "PO-4807",
+          "vendor_id": "V-1021",
+          "vendor": "Meridian Office Supply",
+          "category": "Stationery",
+          "amount": 21625,
+          "date": "2025-08-08",
+          "status": "Delivered"
+        },
+        {
+          "id": "PO-4812",
+          "vendor_id": "V-1021",
+          "vendor": "Meridian Office Supply",
+          "category": "Stationery",
+          "amount": 28500,
+          "date": "2025-04-13",
+          "status": "Delayed"
+        },
+        {
+          "id": "PO-4802",
+          "vendor_id": "V-1021",
+          "vendor": "Meridian Office Supply",
+          "category": "Stationery",
+          "amount": 14750,
+          "date": "2025-03-03",
+          "status": "Delivered"
+        }
+      ]
+    },
+    "V-1103": {
+      "vendor": {
+        "id": "V-1103",
+        "name": "Pinnacle Industrial",
+        "category": "Equipment",
+        "email": "team@pinnacle.io",
+        "location": "Detroit, MI",
+        "status": "Review",
+        "score": 61,
+        "risk_score": 67,
+        "risk": "High",
+        "delivery": 64,
+        "quality": 68,
+        "cost": 72,
+        "reliability": 59,
+        "orders": 74,
+        "delayed": 27,
+        "complaints": 15,
+        "defects": 14,
+        "trend": [
+          72,
+          69,
+          66,
+          64,
+          63,
+          61
+        ]
+      },
+      "history": [
+        {
+          "month": "Jan",
+          "score": 72,
+          "delivery": 70,
+          "quality": 74
+        },
+        {
+          "month": "Feb",
+          "score": 69,
+          "delivery": 67,
+          "quality": 71
+        },
+        {
+          "month": "Mar",
+          "score": 66,
+          "delivery": 64,
+          "quality": 68
+        },
+        {
+          "month": "Apr",
+          "score": 64,
+          "delivery": 62,
+          "quality": 66
+        },
+        {
+          "month": "May",
+          "score": 63,
+          "delivery": 61,
+          "quality": 65
+        },
+        {
+          "month": "Jun",
+          "score": 61,
+          "delivery": 59,
+          "quality": 63
+        }
+      ],
+      "notes": [],
+      "orders": [
+        {
+          "id": "PO-4808",
+          "vendor_id": "V-1103",
+          "vendor": "Pinnacle Industrial",
+          "category": "Equipment",
+          "amount": 23000,
+          "date": "2025-09-09",
+          "status": "Delayed"
+        },
+        {
+          "id": "PO-4813",
+          "vendor_id": "V-1103",
+          "vendor": "Pinnacle Industrial",
+          "category": "Equipment",
+          "amount": 29875,
+          "date": "2025-05-14",
+          "status": "Delivered"
+        },
+        {
+          "id": "PO-4803",
+          "vendor_id": "V-1103",
+          "vendor": "Pinnacle Industrial",
+          "category": "Equipment",
+          "amount": 16125,
+          "date": "2025-04-04",
+          "status": "Delivered"
+        }
+      ]
+    },
+    "V-0977": {
+      "vendor": {
+        "id": "V-0977",
+        "name": "Atlas Packaging",
+        "category": "Packaging",
+        "email": "sales@atlaspack.com",
+        "location": "Portland, OR",
+        "status": "Active",
+        "score": 86,
+        "risk_score": 24,
+        "risk": "Low",
+        "delivery": 89,
+        "quality": 91,
+        "cost": 80,
+        "reliability": 84,
+        "orders": 121,
+        "delayed": 9,
+        "complaints": 4,
+        "defects": 5,
+        "trend": [
+          79,
+          81,
+          83,
+          84,
+          85,
+          86
+        ]
+      },
+      "history": [
+        {
+          "month": "Jan",
+          "score": 79,
+          "delivery": 77,
+          "quality": 81
+        },
+        {
+          "month": "Feb",
+          "score": 81,
+          "delivery": 79,
+          "quality": 83
+        },
+        {
+          "month": "Mar",
+          "score": 83,
+          "delivery": 81,
+          "quality": 85
+        },
+        {
+          "month": "Apr",
+          "score": 84,
+          "delivery": 82,
+          "quality": 86
+        },
+        {
+          "month": "May",
+          "score": 85,
+          "delivery": 83,
+          "quality": 87
+        },
+        {
+          "month": "Jun",
+          "score": 86,
+          "delivery": 84,
+          "quality": 88
+        }
+      ],
+      "notes": [],
+      "orders": [
+        {
+          "id": "PO-4814",
+          "vendor_id": "V-0977",
+          "vendor": "Atlas Packaging",
+          "category": "Packaging",
+          "amount": 31250,
+          "date": "2025-06-15",
+          "status": "Delivered"
+        },
+        {
+          "id": "PO-4804",
+          "vendor_id": "V-0977",
+          "vendor": "Atlas Packaging",
+          "category": "Packaging",
+          "amount": 17500,
+          "date": "2025-05-05",
+          "status": "Delayed"
+        },
+        {
+          "id": "PO-4809",
+          "vendor_id": "V-0977",
+          "vendor": "Atlas Packaging",
+          "category": "Packaging",
+          "amount": 24375,
+          "date": "2025-01-10",
+          "status": "Delivered"
+        }
+      ]
+    },
+    "V-1132": {
+      "vendor": {
+        "id": "V-1132",
+        "name": "BluePeak Logistics",
+        "category": "Logistics",
+        "email": "care@bluepeak.com",
+        "location": "Nashville, TN",
+        "status": "Active",
+        "score": 73,
+        "risk_score": 47,
+        "risk": "Medium",
+        "delivery": 76,
+        "quality": 79,
+        "cost": 74,
+        "reliability": 70,
+        "orders": 88,
+        "delayed": 19,
+        "complaints": 9,
+        "defects": 11,
+        "trend": [
+          70,
+          71,
+          73,
+          72,
+          74,
+          73
+        ]
+      },
+      "history": [
+        {
+          "month": "Jan",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        },
+        {
+          "month": "Feb",
+          "score": 71,
+          "delivery": 69,
+          "quality": 73
+        },
+        {
+          "month": "Mar",
+          "score": 73,
+          "delivery": 71,
+          "quality": 75
+        },
+        {
+          "month": "Apr",
+          "score": 72,
+          "delivery": 70,
+          "quality": 74
+        },
+        {
+          "month": "May",
+          "score": 74,
+          "delivery": 72,
+          "quality": 76
+        },
+        {
+          "month": "Jun",
+          "score": 73,
+          "delivery": 71,
+          "quality": 75
+        }
+      ],
+      "notes": [],
+      "orders": [
+        {
+          "id": "PO-4815",
+          "vendor_id": "V-1132",
+          "vendor": "BluePeak Logistics",
+          "category": "Logistics",
+          "amount": 32625,
+          "date": "2025-07-16",
+          "status": "Delivered"
+        },
+        {
+          "id": "PO-4805",
+          "vendor_id": "V-1132",
+          "vendor": "BluePeak Logistics",
+          "category": "Logistics",
+          "amount": 18875,
+          "date": "2025-06-06",
+          "status": "Delivered"
+        },
+        {
+          "id": "PO-4810",
+          "vendor_id": "V-1132",
+          "vendor": "BluePeak Logistics",
+          "category": "Logistics",
+          "amount": 25750,
+          "date": "2025-02-11",
+          "status": "Delivered"
+        }
+      ]
+    },
+    "V-1D20": {
+      "vendor": {
+        "id": "V-1D20",
+        "name": "UI Regression Vendor",
+        "category": "Electronics",
+        "email": "ui-regression@example.com",
+        "location": "Boston, MA",
+        "contract_value": 100000.0,
+        "status": "Active",
+        "score": 70,
+        "risk_score": 50,
+        "risk": "Medium",
+        "delivery": 70,
+        "quality": 70,
+        "cost": 70,
+        "reliability": 70,
+        "orders": 0,
+        "delayed": 0,
+        "complaints": 0,
+        "defects": 0,
+        "trend": [
+          70,
+          70,
+          70,
+          70,
+          70,
+          70
+        ]
+      },
+      "history": [
+        {
+          "month": "Jan",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        },
+        {
+          "month": "Feb",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        },
+        {
+          "month": "Mar",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        },
+        {
+          "month": "Apr",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        },
+        {
+          "month": "May",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        },
+        {
+          "month": "Jun",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        }
+      ],
+      "notes": [],
+      "orders": []
+    },
+    "V-DA00": {
+      "vendor": {
+        "id": "V-DA00",
+        "name": "UI Regression Vendor 2",
+        "category": "Electronics",
+        "email": "ui-regression2@example.com",
+        "location": "United States",
+        "contract_value": 100000.0,
+        "status": "Active",
+        "score": 70,
+        "risk_score": 50,
+        "risk": "Medium",
+        "delivery": 70,
+        "quality": 70,
+        "cost": 70,
+        "reliability": 70,
+        "orders": 0,
+        "delayed": 0,
+        "complaints": 0,
+        "defects": 0,
+        "trend": [
+          70,
+          70,
+          70,
+          70,
+          70,
+          70
+        ]
+      },
+      "history": [
+        {
+          "month": "Jan",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        },
+        {
+          "month": "Feb",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        },
+        {
+          "month": "Mar",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        },
+        {
+          "month": "Apr",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        },
+        {
+          "month": "May",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        },
+        {
+          "month": "Jun",
+          "score": 70,
+          "delivery": 68,
+          "quality": 72
+        }
+      ],
+      "notes": [],
+      "orders": []
+    }
+  }
+}
