@@ -14,7 +14,7 @@ if backend_dir not in sys.path:
 from app.main import app
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("PORT", 8080))
     db_url = os.getenv("DATABASE_URL", "")
     gemini_key = os.getenv("GEMINI_API_KEY", "")
     gemini_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
