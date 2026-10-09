@@ -1,8 +1,25 @@
+"""
+VendorSync AI — AI Orchestration & RAG Grounding Service
+Routes queries to NVIDIA NIM as primary provider, with graceful fallbacks
+to Gemini, OpenAI, or the offline deterministic grounded analytics engine.
+"""
+
 import os
 import json
 import logging
 from typing import Dict, Any, List, Optional
 import httpx
+
+from .nvidia_service import (
+    call_nvidia_api,
+    stream_nvidia_api,
+    is_nvidia_available,
+    get_nvidia_config
+)
+from .analytics_engine import (
+    resolve_intent_and_facts,
+    KPI_FORMULAS
+)
 
 logger = logging.getLogger("ai_service")
 
@@ -10,18 +27,31 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
+
 def get_ai_status() -> Dict[str, Any]:
-    """Returns the current operational status of the AI integration."""
+    """Returns the operational status of the AI integration hierarchy."""
+    nvidia_cfg = get_nvidia_config()
+    has_nvidia = nvidia_cfg["configured"]
     has_gemini = bool(os.getenv("GEMINI_API_KEY", "").strip())
     has_openai = bool(os.getenv("OPENAI_API_KEY", "").strip())
-    
-    if has_gemini:
+
+    if has_nvidia:
+        return {
+            "provider": "nvidia",
+            "model": nvidia_cfg["model"],
+            "connected": True,
+            "mode": f"NVIDIA NIM ({nvidia_cfg['model'].split('/')[-1]})",
+            "message": f"Connected to NVIDIA NIM API at {nvidia_cfg['base_url']}",
+            "features": ["Grounded RAG", "Streaming", "Reasoning Content", "Multi-Vendor Matrix"]
+        }
+    elif has_gemini:
         return {
             "provider": "google_gemini",
             "model": GEMINI_MODEL,
             "connected": True,
             "mode": "Live Google Gemini AI",
-            "message": "Connected to Google Gemini API"
+            "message": "Connected to Google Gemini API",
+            "features": ["Grounded RAG", "Multi-Vendor Matrix"]
         }
     elif has_openai:
         return {
@@ -29,16 +59,19 @@ def get_ai_status() -> Dict[str, Any]:
             "model": "gpt-4o-mini",
             "connected": True,
             "mode": "Live OpenAI GPT",
-            "message": "Connected to OpenAI API"
+            "message": "Connected to OpenAI API",
+            "features": ["Grounded RAG", "Multi-Vendor Matrix"]
         }
     else:
         return {
-            "provider": "heuristic_ai_engine",
-            "model": "VendorSync-Local-Reasoning-v2",
+            "provider": "grounded_analytics_engine",
+            "model": "VendorSync-Deterministic-v2",
             "connected": False,
-            "mode": "Smart Local AI Engine (Offline / Standby)",
-            "message": "Add GEMINI_API_KEY in .env to activate live Google Gemini 1.5 Flash"
+            "mode": "Smart Grounded Analytics Engine (Offline)",
+            "message": "Configure NVIDIA_API_KEY in .env to activate live NVIDIA NIM reasoning.",
+            "features": ["Deterministic Analytics", "Rule-Based KPI Verification", "Offline Matrix"]
         }
+
 
 async def call_gemini_api(prompt: str, system_instruction: str = "") -> Optional[str]:
     """Direct HTTPS call to Google Gemini Flash API using httpx."""
@@ -46,28 +79,13 @@ async def call_gemini_api(prompt: str, system_instruction: str = "") -> Optional
     if not api_key:
         return None
 
-    # Use Gemini REST API
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={api_key}"
-    
     payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": prompt}
-                ]
-            }
-        ],
-        "generationConfig": {
-            "temperature": 0.2,
-            "topP": 0.8,
-            "maxOutputTokens": 2048,
-        }
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.2, "topP": 0.8, "maxOutputTokens": 2048}
     }
-    
     if system_instruction:
-        payload["systemInstruction"] = {
-            "parts": [{"text": system_instruction}]
-        }
+        payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -79,11 +97,10 @@ async def call_gemini_api(prompt: str, system_instruction: str = "") -> Optional
                     parts = candidates[0].get("content", {}).get("parts", [])
                     if parts:
                         return parts[0].get("text", "")
-            else:
-                logger.warning(f"Gemini API returned status {resp.status_code}: {resp.text}")
     except Exception as e:
         logger.error(f"Error calling Gemini API: {e}")
     return None
+
 
 async def call_openai_api(messages: List[Dict[str, str]]) -> Optional[str]:
     """Call OpenAI compatible API if OPENAI_API_KEY is configured."""
@@ -114,18 +131,17 @@ async def call_openai_api(messages: List[Dict[str, str]]) -> Optional[str]:
         logger.error(f"Error calling OpenAI API: {e}")
     return None
 
+
 def _local_fallback_risk_analysis(vendor: Dict[str, Any], notes: List[Any], orders: List[Any]) -> Dict[str, Any]:
     """Deterministic, explainable heuristic fallback when no external API key is active."""
     score = vendor.get("score", 75)
     delivery = vendor.get("delivery", 80)
     quality = vendor.get("quality", 80)
     cost = vendor.get("cost", 75)
-    reliability = vendor.get("reliability", 80)
     orders_cnt = vendor.get("orders", 10)
     delayed_cnt = vendor.get("delayed", 0)
     complaints_cnt = vendor.get("complaints", 0)
     defects_cnt = vendor.get("defects", 0)
-    
     delay_ratio = delayed_cnt / max(orders_cnt, 1)
 
     drivers = []
@@ -207,8 +223,10 @@ def _local_fallback_risk_analysis(vendor: Dict[str, Any], notes: List[Any], orde
         "strategic_recommendations": recommendations,
         "contract_negotiation_advice": negotiation,
         "engine": "VendorSync Smart Local AI Reasoning (Offline)",
-        "gemini_connected": False
+        "gemini_connected": False,
+        "nvidia_connected": False
     }
+
 
 async def analyze_vendor_risk_ai(
     vendor: Dict[str, Any],
@@ -216,11 +234,10 @@ async def analyze_vendor_risk_ai(
     orders: Optional[List[Dict[str, Any]]] = None
 ) -> Dict[str, Any]:
     """
-    Performs AI-powered risk diagnosis using Google Gemini Flash (with intelligent local fallback).
+    Performs AI-powered risk diagnosis using NVIDIA NIM (with Gemini, OpenAI, or local fallback).
     """
     notes = notes or []
     orders = orders or []
-    
     notes_summary = "; ".join([f"{n.get('author')}: {n.get('note')}" for n in notes[:5]]) if notes else "No notes recorded."
     recent_orders = [
         f"Order {o.get('id')}: ${o.get('amount')} ({o.get('status')})" for o in orders[:5]
@@ -267,10 +284,30 @@ Return strictly a valid JSON object matching this schema without any markdown fo
         "Provide factual, grounded, analytical risk evaluations. Return only raw JSON."
     )
 
-    # 1. Try Gemini
+    # 1. Try NVIDIA NIM first
+    if is_nvidia_available():
+        res = await call_nvidia_api(prompt, f"### [AUDIT DATA] {vendor.get('name')}")
+        if res and res.get("reply"):
+            try:
+                cleaned = res["reply"].strip()
+                if cleaned.startswith("```json"):
+                    cleaned = cleaned[7:]
+                if cleaned.startswith("```"):
+                    cleaned = cleaned[3:]
+                if cleaned.endswith("```"):
+                    cleaned = cleaned[:-3]
+                data = json.loads(cleaned.strip())
+                data["engine"] = f"NVIDIA NIM ({res['model']})"
+                data["nvidia_connected"] = True
+                data["gemini_connected"] = False
+                return data
+            except Exception as e:
+                logger.warning(f"Failed to parse NVIDIA JSON response: {e}")
+
+    # 2. Try Gemini
     raw_response = await call_gemini_api(prompt, system_instruction)
-    
-    # 2. Try OpenAI if Gemini not set
+
+    # 3. Try OpenAI if Gemini not set
     if not raw_response and os.getenv("OPENAI_API_KEY", "").strip():
         messages = [
             {"role": "system", "content": system_instruction},
@@ -280,7 +317,6 @@ Return strictly a valid JSON object matching this schema without any markdown fo
 
     if raw_response:
         try:
-            # Clean markdown fences if present
             cleaned = raw_response.strip()
             if cleaned.startswith("```json"):
                 cleaned = cleaned[7:]
@@ -291,141 +327,163 @@ Return strictly a valid JSON object matching this schema without any markdown fo
             data = json.loads(cleaned.strip())
             data["engine"] = f"Google Gemini Flash ({GEMINI_MODEL})"
             data["gemini_connected"] = True
+            data["nvidia_connected"] = False
             return data
         except Exception as e:
-            logger.warning(f"Failed to parse LLM JSON: {e}, text: {raw_response[:200]}")
+            logger.warning(f"Failed to parse LLM JSON: {e}")
 
-    # 3. Fallback to local reasoning
+    # 4. Fallback to deterministic local reasoning
     return _local_fallback_risk_analysis(vendor, notes, orders)
+
 
 async def chat_with_procurement_ai(
     user_message: str,
     portfolio: Dict[str, Any],
-    chat_history: Optional[List[Dict[str, str]]] = None
+    chat_history: Optional[List[Dict[str, str]]] = None,
+    scoped_vendor_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     RAG-grounded AI Copilot for procurement managers.
-    Answers natural language queries using live database context.
+    Pipeline:
+    1. Deterministic Intent & Fact Resolution
+    2. NVIDIA NIM inference (grounded in verified facts)
+    3. Fallbacks to Gemini, OpenAI, or local deterministic generator
     """
     chat_history = chat_history or []
-    vendors = portfolio.get("vendors", [])
-    stats = portfolio.get("stats", {})
-    orders = portfolio.get("orders", [])
 
-    # Format grounded context
-    vendor_lines = [
-        f"- {v.get('name')} (ID: {v.get('id')}, Category: {v.get('category')}, Score: {v.get('score')}%, Risk: {v.get('risk')}, Delivery: {v.get('delivery')}%, Quality: {v.get('quality')}%, Delayed: {v.get('delayed')}/{v.get('orders')}, Complaints: {v.get('complaints')})"
-        for v in vendors
-    ]
-    context = (
-        f"PORTFOLIO OVERVIEW:\n"
-        f"Total Vendors: {stats.get('vendors')}, Low Risk: {stats.get('low')}, Medium Risk: {stats.get('medium')}, High Risk: {stats.get('high')}, Orders Tracked: {stats.get('orders')}\n\n"
-        f"ACTIVE VENDORS:\n" + "\n".join(vendor_lines) + "\n\n"
-        f"RECENT ORDERS SAMPLE ({min(5, len(orders))} shown):\n" +
-        "\n".join([f"- Order {o.get('id')}: {o.get('vendor')} (${o.get('amount')}, Status: {o.get('status')})" for o in orders[:5]])
-    )
+    # 1. Deterministic Grounding
+    grounding = resolve_intent_and_facts(user_message, portfolio, scoped_vendor_id)
+    intent = grounding["intent"]
+    verified_metrics = grounding["verified_metrics"]
+    factual_table_md = grounding["factual_table_md"]
 
+    scoped_vendor_name = None
+    if scoped_vendor_id:
+        v = next((x for x in portfolio.get("vendors", []) if x.get("id") == scoped_vendor_id), None)
+        if v:
+            scoped_vendor_name = v.get("name")
+
+    # 2. Try NVIDIA NIM
+    if is_nvidia_available():
+        res = await call_nvidia_api(
+            user_message=user_message,
+            factual_table_md=factual_table_md,
+            chat_history=chat_history,
+            scoped_vendor_name=scoped_vendor_name
+        )
+        if res and res.get("reply"):
+            return {
+                "reply": res["reply"],
+                "reasoning": res.get("reasoning"),
+                "provider": "NVIDIA NIM",
+                "model": res["model"],
+                "connected": True,
+                "intent": intent,
+                "verified_metrics": verified_metrics,
+                "supporting_data": verified_metrics
+            }
+
+    # 3. Try Gemini Fallback
     system_instruction = (
         "You are VendorSync Copilot, an expert AI procurement intelligence assistant. "
-        "You help procurement managers evaluate supplier risks, compare vendors, draft negotiation strategies, and spot supply-chain bottlenecks. "
-        "Ground all answers strictly on the supplied portfolio context. Be concise, professional, and actionable."
+        "Ground all answers strictly on the supplied verified data. Be concise, professional, and actionable."
     )
+    prompt = f"{factual_table_md}\n\nUSER QUERY:\n{user_message}"
+    raw_gemini = await call_gemini_api(prompt, system_instruction)
+    if raw_gemini:
+        return {
+            "reply": raw_gemini.strip(),
+            "provider": "Google Gemini",
+            "model": GEMINI_MODEL,
+            "connected": True,
+            "intent": intent,
+            "verified_metrics": verified_metrics,
+            "supporting_data": verified_metrics
+        }
 
-    prompt = f"""
-{context}
-
-USER QUERY:
-{user_message}
-
-Please provide a well-structured, clear, professional answer formatted in markdown. Include specific data points from the portfolio.
-"""
-
-    raw_response = await call_gemini_api(prompt, system_instruction)
-    
-    if not raw_response and os.getenv("OPENAI_API_KEY", "").strip():
+    # 4. Try OpenAI Fallback
+    if os.getenv("OPENAI_API_KEY", "").strip():
         messages = [
             {"role": "system", "content": system_instruction},
             {"role": "user", "content": prompt}
         ]
-        raw_response = await call_openai_api(messages)
+        raw_openai = await call_openai_api(messages)
+        if raw_openai:
+            return {
+                "reply": raw_openai.strip(),
+                "provider": "OpenAI",
+                "model": "gpt-4o-mini",
+                "connected": True,
+                "intent": intent,
+                "verified_metrics": verified_metrics,
+                "supporting_data": verified_metrics
+            }
 
-    if raw_response:
-        return {
-            "reply": raw_response.strip(),
-            "provider": "Google Gemini",
-            "model": GEMINI_MODEL,
-            "connected": True
-        }
+    # 5. Deterministic Grounded Engine Fallback
+    vendors = portfolio.get("vendors", [])
+    stats = verified_metrics.get("stats", {})
 
-    # Heuristic smart fallback for chat
-    lower_q = user_message.lower()
-    
-    if "high risk" in lower_q or "attention" in lower_q or "risk" in lower_q and "highest" in lower_q:
-        high_risk = [v for v in vendors if v.get("risk") == "High"]
-        names = ", ".join([v.get("name") for v in high_risk]) if high_risk else "None currently"
+    if intent == "comparison" and "comparison" in verified_metrics:
+        comp = verified_metrics["comparison"]
         reply = (
-            f"### 🚨 High Risk Supplier Alert\n\n"
-            f"Based on live performance analytics, the following vendor(s) are classified as **High Risk**:\n\n"
+            f"### 📊 Comparative Analysis: {comp['vendor_1']} vs {comp['vendor_2']}\n\n"
+            f"{factual_table_md}\n\n"
+            f"**Strategic Assessment:**\n"
+            f"- **Leader**: **{comp['overall_winner']}** demonstrates superior operational stability across {max(comp['vendor_1_wins'], comp['vendor_2_wins'])} evaluated dimensions.\n"
+            f"- **Procurement Recommendation**: For high-volume contracts, prioritize {comp['overall_winner']} to reduce operational delay exposure."
         )
-        for v in high_risk:
-            reply += f"- **{v['name']}** (Score: `{v['score']}%`, Risk: `{v['risk_score']}%`): {v['delayed']} delayed orders, {v['complaints']} complaints. Primary bottleneck is delivery schedule variance.\n"
-        reply += (
-            f"\n**Actionable Advice:**\n"
-            f"1. Freeze new high-dollar allocations.\n"
-            f"2. Require a mandatory 30-day Corrective Action Plan.\n"
-            f"3. Activate secondary pre-approved suppliers in the same category."
-        )
-    elif "compare" in lower_q or "versus" in lower_q or "vs" in lower_q:
-        matched = [v for v in vendors if any(word in v.get("name", "").lower() for word in lower_q.split())]
-        if len(matched) >= 2:
-            v1, v2 = matched[0], matched[1]
-            reply = (
-                f"### 📊 Comparative Analysis: {v1['name']} vs {v2['name']}\n\n"
-                f"| Metric | {v1['name']} | {v2['name']} | Superior Supplier |\n"
-                f"|---|---|---|---|\n"
-                f"| **Overall Score** | {v1['score']}% | {v2['score']}% | **{v1['name'] if v1['score'] > v2['score'] else v2['name']}** |\n"
-                f"| **Delivery** | {v1['delivery']}% | {v2['delivery']}% | **{v1['name'] if v1['delivery'] > v2['delivery'] else v2['name']}** |\n"
-                f"| **Quality** | {v1['quality']}% | {v2['quality']}% | **{v1['name'] if v1['quality'] > v2['quality'] else v2['name']}** |\n"
-                f"| **Risk Rating** | {v1['risk']} ({v1['risk_score']}%) | {v2['risk']} ({v2['risk_score']}%) | **{v1['name'] if v1['risk_score'] < v2['risk_score'] else v2['name']}** |\n\n"
-                f"**Recommendation:** For high-stakes contracts, prioritize **{v1['name'] if v1['score'] > v2['score'] else v2['name']}** due to superior consistency."
-            )
-        else:
-            top_v = max(vendors, key=lambda x: x.get("score", 0)) if vendors else None
-            reply = (
-                f"### 📊 Vendor Comparison Overview\n\n"
-                f"Your network contains **{len(vendors)}** suppliers across multiple categories. "
-                f"The highest rated supplier is **{top_v['name'] if top_v else 'Northstar'}** with **{top_v['score'] if top_v else 96}%** overall performance.\n\n"
-                f"Select specific vendor names (e.g. *'Compare Apex vs Northstar'*) for a detailed side-by-side metric matrix."
-            )
-    elif "recommend" in lower_q or "best" in lower_q or "order" in lower_q:
-        low_risk = sorted([v for v in vendors if v.get("risk") == "Low"], key=lambda x: x.get("score", 0), reverse=True)
-        top = low_risk[0] if low_risk else (vendors[0] if vendors else None)
+    elif intent == "revenue_spend" and "top_financial_vendors" in verified_metrics:
+        top_v = verified_metrics["top_financial_vendors"][0]
         reply = (
-            f"### 💡 Strategic Procurement Recommendation\n\n"
-            f"For new strategic purchase allocations, the recommended primary partner is **{top['name']}** (`{top['id']}`):\n\n"
-            f"- **Performance Score**: `{top['score']}%` (Top tier)\n"
-            f"- **On-Time Delivery**: `{top['delivery']}%`\n"
-            f"- **Quality Consistency**: `{top['quality']}%`\n"
-            f"- **Risk Posture**: `{top['risk']} ({top['risk_score']}%)`\n\n"
-            f"They possess the lowest operational exposure in your portfolio. You can safely assign high-volume purchase commitments to this vendor."
+            f"### 💰 Financial Commitment & Spend Analysis\n\n"
+            f"{factual_table_md}\n\n"
+            f"**Key Financial Takeaways:**\n"
+            f"- The largest active supplier by contract allocation is **{top_v['name']}** at **${top_v['contract_value']:,.2f}**.\n"
+            f"- Total capital committed across all {stats.get('total_vendors', len(vendors))} suppliers is **${stats.get('total_contract_value', 0):,.2f}**.\n"
+            f"- Recommendation: Conduct quarterly margin audits on top 3 suppliers to negotiate bulk purchase rebates."
+        )
+    elif intent == "risk_and_defects":
+        reply = (
+            f"### 🚨 Risk & Quality Bottleneck Analysis\n\n"
+            f"{factual_table_md}\n\n"
+            f"**Actionable Risk Mitigation Plan:**\n"
+            f"1. **Contract Hold**: Pause expansion on High-Risk suppliers with delay rates exceeding 15%.\n"
+            f"2. **Corrective Action**: Issue 30-day remediation plans for suppliers with more than 3 customer complaints.\n"
+            f"3. **Dual-Sourcing**: Qualify secondary backup vendors for single-source suppliers."
+        )
+    elif intent == "kpi_explanation":
+        reply = (
+            f"### 📐 Procurement KPI Methodology & Formula Guide\n\n"
+            f"{factual_table_md}\n\n"
+            f"**Weighting Rationale:**\n"
+            f"- **Delivery (35%) & Quality (35%)**: Form 70% of the core score because on-time defect-free supply directly impacts end-customer fulfillment.\n"
+            f"- **Cost (15%) & Reliability (15%)**: Balance competitive unit economics with relationship responsiveness."
+        )
+    elif intent == "trends" and "trends" in verified_metrics:
+        reply = (
+            f"### 📈 6-Month Vendor Trajectory Analysis\n\n"
+            f"{factual_table_md}\n\n"
+            f"**Trend Interpretation:**\n"
+            f"- Suppliers showing positive trajectory (↗) are expanding manufacturing consistency.\n"
+            f"- Suppliers with negative trajectory (↘) warrant an operational check-in before contract renewal."
         )
     else:
+        top_supplier = sorted(vendors, key=lambda x: x.get("score", 0), reverse=True)[0] if vendors else None
         reply = (
-            f"### 🤖 VendorSync AI Assistant Response\n\n"
-            f"I have analyzed your vendor network of **{len(vendors)} active suppliers** ({stats.get('low', 0)} low risk, {stats.get('medium', 0)} medium risk, {stats.get('high', 0)} high risk).\n\n"
-            f"**Key Network Observations:**\n"
-            f"- **Top Performer**: {sorted(vendors, key=lambda x: x.get('score', 0), reverse=True)[0]['name'] if vendors else 'Northstar Components'}\n"
-            f"- **Overall Order Fulfillment**: {stats.get('orders', 0)} tracked orders with stable throughput.\n\n"
-            f"You can ask me to:\n"
-            f"- *'Assess high risk vendors and propose remedies'*\n"
-            f"- *'Compare Northstar vs Apex Microdevices'*\n"
-            f"- *'Draft a vendor negotiation letter'*\n"
-            f"- *'Recommend the best supplier for electronics'*"
+            f"### 🏢 Vendor Portfolio Overview\n\n"
+            f"{factual_table_md}\n\n"
+            f"**Portfolio Health:**\n"
+            f"- Network average performance score is **{stats.get('avg_score', 84)}%**.\n"
+            f"- Top performing supplier: **{top_supplier['name'] if top_supplier else 'N/A'}** (`{top_supplier['score'] if top_supplier else 0}%` score).\n"
+            f"- Active Risk Distribution: {stats.get('risk_distribution', {}).get('Low', 0)} Low, {stats.get('risk_distribution', {}).get('Medium', 0)} Medium, {stats.get('risk_distribution', {}).get('High', 0)} High."
         )
 
     return {
         "reply": reply,
-        "provider": "VendorSync Local AI Engine (Offline)",
-        "model": "VendorSync-Local-Reasoning-v2",
-        "connected": False
+        "provider": "VendorSync Grounded Analytics Engine (Offline)",
+        "model": "VendorSync-Deterministic-v2",
+        "connected": False,
+        "intent": intent,
+        "verified_metrics": verified_metrics,
+        "supporting_data": verified_metrics
     }
