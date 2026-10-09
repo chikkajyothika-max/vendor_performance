@@ -1,0 +1,15 @@
+# Railway deployment configuration for VendorSync AI
+# Deploy at: https://railway.app → New Project → Deploy from GitHub
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "python run_server.py"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "vendorsync-ai"
