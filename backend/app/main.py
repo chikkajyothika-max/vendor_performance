@@ -1,9 +1,10 @@
 import os
+import json
 from typing import Dict, Any, Optional
 from fastapi import FastAPI, Depends, HTTPException, status, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from .models import (
     UserCreate, UserLogin, UserResponse,
@@ -28,6 +29,8 @@ from .scoring import predict_vendor_risk
 from .ai_service import (
     get_ai_status, analyze_vendor_risk_ai, chat_with_procurement_ai
 )
+from .nvidia_service import stream_nvidia_api, is_nvidia_available
+from .analytics_engine import resolve_intent_and_facts
 
 app = FastAPI(
     title="VendorSync AI API",
@@ -194,8 +197,91 @@ def ai_status(user: Dict[str, Any] = Depends(current_user)):
 
 @app.post("/api/ai/chat", response_model=AIChatResponse)
 async def ai_copilot_chat(req: AIChatRequest, user: Dict[str, Any] = Depends(current_user)):
+    msg = req.message.strip() if req.message else ""
+    if not msg:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Message cannot be empty."
+        )
+    if len(msg) > 4000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Message exceeds maximum allowed length of 4000 characters."
+        )
     portfolio = get_dashboard_data(user)
-    return await chat_with_procurement_ai(req.message, portfolio, req.history)
+    return await chat_with_procurement_ai(
+        msg,
+        portfolio,
+        req.history,
+        scoped_vendor_id=req.vendor_id
+    )
+
+@app.post("/api/ai/chat/stream")
+async def ai_copilot_chat_stream(req: AIChatRequest, user: Dict[str, Any] = Depends(current_user)):
+    msg = req.message.strip() if req.message else ""
+    if not msg:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Message cannot be empty."
+        )
+    if len(msg) > 4000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Message exceeds maximum allowed length of 4000 characters."
+        )
+
+    portfolio = get_dashboard_data(user)
+    grounding = resolve_intent_and_facts(msg, portfolio, req.vendor_id)
+
+    async def event_generator():
+        # First send metadata event with verified facts and intent
+        meta_payload = {
+            "type": "meta",
+            "intent": grounding["intent"],
+            "factual_table_md": grounding["factual_table_md"],
+            "verified_metrics": grounding["verified_metrics"]
+        }
+        yield f"data: {json.dumps(meta_payload)}\n\n"
+
+        if is_nvidia_available():
+            scoped_vendor_name = None
+            if req.vendor_id:
+                v = next((x for x in portfolio.get("vendors", []) if x.get("id") == req.vendor_id), None)
+                if v:
+                    scoped_vendor_name = v.get("name")
+
+            async for chunk in stream_nvidia_api(
+                user_message=msg,
+                factual_table_md=grounding["factual_table_md"],
+                chat_history=req.history,
+                scoped_vendor_name=scoped_vendor_name
+            ):
+                payload = {
+                    "type": "chunk",
+                    "chunk": chunk.get("chunk", ""),
+                    "reasoning": chunk.get("reasoning", ""),
+                    "done": chunk.get("done", False)
+                }
+                yield f"data: {json.dumps(payload)}\n\n"
+        else:
+            # Fallback response via offline grounded engine
+            offline_res = await chat_with_procurement_ai(
+                msg, portfolio, req.history, scoped_vendor_id=req.vendor_id
+            )
+            yield f"data: {json.dumps({'type': 'chunk', 'chunk': offline_res['reply'], 'done': True})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@app.post("/api/ai/grounding")
+def get_grounding_audit(req: AIChatRequest, user: Dict[str, Any] = Depends(current_user)):
+    msg = req.message.strip() if req.message else ""
+    if not msg:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Message cannot be empty."
+        )
+    portfolio = get_dashboard_data(user)
+    return resolve_intent_and_facts(msg, portfolio, req.vendor_id)
 
 @app.post("/api/ai/analyze/{vendor_id}", response_model=AIDeepAnalysisResponse)
 async def ai_deep_analysis(vendor_id: str, user: Dict[str, Any] = Depends(current_user)):

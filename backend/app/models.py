@@ -74,12 +74,18 @@ class RiskPredictResponse(BaseModel):
 class AIChatRequest(BaseModel):
     message: str
     history: Optional[List[Dict[str, str]]] = None
+    vendor_id: Optional[str] = None
+    stream: Optional[bool] = False
 
 class AIChatResponse(BaseModel):
     reply: str
     provider: str
     model: str
     connected: bool
+    intent: Optional[str] = None
+    verified_metrics: Optional[Dict[str, Any]] = None
+    supporting_data: Optional[Dict[str, Any]] = None
+    reasoning: Optional[str] = None
 
 class AIDeepAnalysisResponse(BaseModel):
     vendor_id: str
@@ -94,6 +100,7 @@ class AIDeepAnalysisResponse(BaseModel):
     contract_negotiation_advice: str
     engine: str
     gemini_connected: bool
+    nvidia_connected: Optional[bool] = False
 
 class AIStatusResponse(BaseModel):
     provider: str
@@ -101,6 +108,7 @@ class AIStatusResponse(BaseModel):
     connected: bool
     mode: str
     message: str
+    features: Optional[List[str]] = None
 
 class HealthResponse(BaseModel):
     status: str
