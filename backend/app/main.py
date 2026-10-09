@@ -44,9 +44,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize database on module load
-init_db()
-
 @app.on_event("startup")
 def on_startup():
     init_db()
