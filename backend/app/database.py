@@ -3,10 +3,13 @@ import json
 import os
 import uuid
 import time
+import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 from .auth import hash_password
+
+logger = logging.getLogger("database")
 
 # Load environment variables
 load_dotenv()
@@ -16,30 +19,38 @@ DB_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SQLITE_PATH = os.path.join(DB_DIR, "vendor_sync.db")
 SEED_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed_data.json")
 
-IS_POSTGRES = bool(DATABASE_URL and (DATABASE_URL.startswith("postgresql://") or DATABASE_URL.startswith("postgres://")))
-
-if IS_POSTGRES:
-    try:
-        import psycopg2
-        import psycopg2.extras
-    except ImportError:
-        IS_POSTGRES = False
+HAS_PSYCOPG2 = False
+try:
+    import psycopg2
+    import psycopg2.extras
+    HAS_PSYCOPG2 = True
+except ImportError:
+    HAS_PSYCOPG2 = False
 
 class DBConnection:
-    """Unified wrapper around SQLite and PostgreSQL connections."""
+    """Unified wrapper around SQLite and PostgreSQL connections with automatic fallback."""
     def __init__(self):
-        self.is_postgres = IS_POSTGRES
-        if self.is_postgres:
-            # Fix postgres:// scheme if needed for SQLAlchemy/psycopg2
-            url = DATABASE_URL
-            if url.startswith("postgres://"):
-                url = "postgresql://" + url[len("postgres://"):]
-            self.conn = psycopg2.connect(url)
-            self.cursor_factory = psycopg2.extras.RealDictCursor
-        else:
-            self.conn = sqlite3.connect(SQLITE_PATH)
-            self.conn.row_factory = sqlite3.Row
-            self.cursor_factory = None
+        self.is_postgres = False
+        self.conn = None
+        self.cursor_factory = None
+
+        db_url = os.getenv("DATABASE_URL", "").strip()
+        if db_url and (db_url.startswith("postgresql://") or db_url.startswith("postgres://")) and HAS_PSYCOPG2:
+            try:
+                url = db_url
+                if url.startswith("postgres://"):
+                    url = "postgresql://" + url[len("postgres://"):]
+                self.conn = psycopg2.connect(url, connect_timeout=10)
+                self.cursor_factory = psycopg2.extras.RealDictCursor
+                self.is_postgres = True
+                return
+            except Exception as e:
+                logger.warning(f"PostgreSQL connection failed ({e}), falling back to SQLite.")
+
+        # Fallback to local SQLite
+        self.conn = sqlite3.connect(SQLITE_PATH)
+        self.conn.row_factory = sqlite3.Row
+        self.is_postgres = False
 
     def cursor(self):
         if self.is_postgres:
@@ -47,21 +58,24 @@ class DBConnection:
         return self.conn.cursor()
 
     def commit(self):
-        self.conn.commit()
+        if self.conn:
+            self.conn.commit()
 
     def rollback(self):
-        self.conn.rollback()
+        if self.conn:
+            self.conn.rollback()
 
     def close(self):
-        self.conn.close()
+        if self.conn:
+            self.conn.close()
 
-def get_connection():
+def get_connection() -> DBConnection:
     return DBConnection()
 
 def execute_query(cursor, query: str, params: tuple = ()):
     """Executes query adapting parameter syntax between SQLite (?) and PostgreSQL (%s)."""
-    if IS_POSTGRES:
-        # Convert ? placeholders to %s for PostgreSQL
+    is_pg = type(cursor).__module__.startswith("psycopg2")
+    if is_pg:
         pg_query = query.replace("?", "%s")
         cursor.execute(pg_query, params)
     else:
@@ -76,161 +90,167 @@ def get_database_health() -> Dict[str, Any]:
         cur = db.cursor()
         execute_query(cur, "SELECT COUNT(*) as count FROM users")
         row = cur.fetchone()
-        user_count = row["count"] if IS_POSTGRES else row[0]
+        user_count = row["count"] if row else 0
+        is_pg = db.is_postgres
         db.close()
         latency_ms = round((time.time() - t0) * 1000, 2)
         return {
             "status": "healthy",
-            "dialect": "PostgreSQL" if IS_POSTGRES else "SQLite",
-            "database_url_configured": bool(DATABASE_URL),
+            "dialect": "PostgreSQL" if is_pg else "SQLite",
+            "database_url_configured": bool(os.getenv("DATABASE_URL")),
             "latency_ms": latency_ms,
             "user_count": user_count
         }
     except Exception as e:
         return {
-            "status": "unhealthy",
+            "status": "degraded",
             "error": str(e),
-            "dialect": "PostgreSQL" if IS_POSTGRES else "SQLite"
+            "dialect": "SQLite (Emergency fallback)"
         }
 
 def init_db():
-    db = get_connection()
-    cursor = db.cursor()
+    try:
+        db = get_connection()
+        cursor = db.cursor()
+        is_pg = db.is_postgres
 
-    # Create users table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(64) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        role VARCHAR(64) NOT NULL DEFAULT 'procurement_manager',
-        created_at VARCHAR(64) NOT NULL
-    )
-    """)
+        # Create users table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id VARCHAR(64) PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role VARCHAR(64) NOT NULL DEFAULT 'procurement_manager',
+            created_at VARCHAR(64) NOT NULL
+        )
+        """)
 
-    # Create vendors table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS vendors (
-        id VARCHAR(64) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        category VARCHAR(128) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        location VARCHAR(255) NOT NULL,
-        status VARCHAR(64) NOT NULL DEFAULT 'Active',
-        contract_value DOUBLE PRECISION DEFAULT 100000.0,
-        score INTEGER NOT NULL,
-        risk_score INTEGER NOT NULL,
-        risk VARCHAR(64) NOT NULL,
-        delivery INTEGER NOT NULL,
-        quality INTEGER NOT NULL,
-        cost INTEGER NOT NULL,
-        reliability INTEGER NOT NULL,
-        orders INTEGER NOT NULL,
-        delayed INTEGER NOT NULL,
-        complaints INTEGER NOT NULL,
-        defects INTEGER NOT NULL,
-        trend TEXT NOT NULL,
-        history TEXT NOT NULL
-    )
-    """ if IS_POSTGRES else """
-    CREATE TABLE IF NOT EXISTS vendors (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        category TEXT NOT NULL,
-        email TEXT NOT NULL,
-        location TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'Active',
-        contract_value REAL DEFAULT 100000.0,
-        score INTEGER NOT NULL,
-        risk_score INTEGER NOT NULL,
-        risk TEXT NOT NULL,
-        delivery INTEGER NOT NULL,
-        quality INTEGER NOT NULL,
-        cost INTEGER NOT NULL,
-        reliability INTEGER NOT NULL,
-        orders INTEGER NOT NULL,
-        delayed INTEGER NOT NULL,
-        complaints INTEGER NOT NULL,
-        defects INTEGER NOT NULL,
-        trend TEXT NOT NULL,
-        history TEXT NOT NULL
-    )
-    """)
+        # Create vendors table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS vendors (
+            id VARCHAR(64) PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            category VARCHAR(128) NOT NULL,
+            email VARCHAR(255) NOT NULL,
+            location VARCHAR(255) NOT NULL,
+            status VARCHAR(64) NOT NULL DEFAULT 'Active',
+            contract_value DOUBLE PRECISION DEFAULT 100000.0,
+            score INTEGER NOT NULL,
+            risk_score INTEGER NOT NULL,
+            risk VARCHAR(64) NOT NULL,
+            delivery INTEGER NOT NULL,
+            quality INTEGER NOT NULL,
+            cost INTEGER NOT NULL,
+            reliability INTEGER NOT NULL,
+            orders INTEGER NOT NULL,
+            delayed INTEGER NOT NULL,
+            complaints INTEGER NOT NULL,
+            defects INTEGER NOT NULL,
+            trend TEXT NOT NULL,
+            history TEXT NOT NULL
+        )
+        """ if is_pg else """
+        CREATE TABLE IF NOT EXISTS vendors (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            email TEXT NOT NULL,
+            location TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'Active',
+            contract_value REAL DEFAULT 100000.0,
+            score INTEGER NOT NULL,
+            risk_score INTEGER NOT NULL,
+            risk TEXT NOT NULL,
+            delivery INTEGER NOT NULL,
+            quality INTEGER NOT NULL,
+            cost INTEGER NOT NULL,
+            reliability INTEGER NOT NULL,
+            orders INTEGER NOT NULL,
+            delayed INTEGER NOT NULL,
+            complaints INTEGER NOT NULL,
+            defects INTEGER NOT NULL,
+            trend TEXT NOT NULL,
+            history TEXT NOT NULL
+        )
+        """)
 
-    # Create orders table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS orders (
-        id VARCHAR(64) PRIMARY KEY,
-        vendor_id VARCHAR(64) NOT NULL,
-        vendor VARCHAR(255) NOT NULL,
-        category VARCHAR(128) NOT NULL,
-        amount DOUBLE PRECISION NOT NULL,
-        date VARCHAR(64) NOT NULL,
-        status VARCHAR(64) NOT NULL,
-        FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE CASCADE
-    )
-    """ if IS_POSTGRES else """
-    CREATE TABLE IF NOT EXISTS orders (
-        id TEXT PRIMARY KEY,
-        vendor_id TEXT NOT NULL,
-        vendor TEXT NOT NULL,
-        category TEXT NOT NULL,
-        amount REAL NOT NULL,
-        date TEXT NOT NULL,
-        status TEXT NOT NULL,
-        FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE CASCADE
-    )
-    """)
+        # Create orders table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS orders (
+            id VARCHAR(64) PRIMARY KEY,
+            vendor_id VARCHAR(64) NOT NULL,
+            vendor VARCHAR(255) NOT NULL,
+            category VARCHAR(128) NOT NULL,
+            amount DOUBLE PRECISION NOT NULL,
+            date VARCHAR(64) NOT NULL,
+            status VARCHAR(64) NOT NULL,
+            FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE CASCADE
+        )
+        """ if is_pg else """
+        CREATE TABLE IF NOT EXISTS orders (
+            id TEXT PRIMARY KEY,
+            vendor_id TEXT NOT NULL,
+            vendor TEXT NOT NULL,
+            category TEXT NOT NULL,
+            amount REAL NOT NULL,
+            date TEXT NOT NULL,
+            status TEXT NOT NULL,
+            FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE CASCADE
+        )
+        """)
 
-    # Create notes table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS notes (
-        id VARCHAR(64) PRIMARY KEY,
-        vendor_id VARCHAR(64) NOT NULL,
-        author VARCHAR(255) NOT NULL,
-        note TEXT NOT NULL,
-        created_at VARCHAR(64) NOT NULL,
-        FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE CASCADE
-    )
-    """ if IS_POSTGRES else """
-    CREATE TABLE IF NOT EXISTS notes (
-        id TEXT PRIMARY KEY,
-        vendor_id TEXT NOT NULL,
-        author TEXT NOT NULL,
-        note TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE CASCADE
-    )
-    """)
+        # Create notes table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS notes (
+            id VARCHAR(64) PRIMARY KEY,
+            vendor_id VARCHAR(64) NOT NULL,
+            author VARCHAR(255) NOT NULL,
+            note TEXT NOT NULL,
+            created_at VARCHAR(64) NOT NULL,
+            FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE CASCADE
+        )
+        """ if is_pg else """
+        CREATE TABLE IF NOT EXISTS notes (
+            id TEXT PRIMARY KEY,
+            vendor_id TEXT NOT NULL,
+            author TEXT NOT NULL,
+            note TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE CASCADE
+        )
+        """)
 
-    # Create monthly_stats table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS monthly_stats (
-        month VARCHAR(64) PRIMARY KEY,
-        score INTEGER NOT NULL
-    )
-    """ if IS_POSTGRES else """
-    CREATE TABLE IF NOT EXISTS monthly_stats (
-        month TEXT PRIMARY KEY,
-        score INTEGER NOT NULL
-    )
-    """)
+        # Create monthly_stats table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS monthly_stats (
+            month VARCHAR(64) PRIMARY KEY,
+            score INTEGER NOT NULL
+        )
+        """ if is_pg else """
+        CREATE TABLE IF NOT EXISTS monthly_stats (
+            month TEXT PRIMARY KEY,
+            score INTEGER NOT NULL
+        )
+        """)
 
-    db.commit()
+        db.commit()
 
-    # Seed data if users table is empty
-    cursor.execute("SELECT COUNT(*) as count FROM users")
-    row = cursor.fetchone()
-    count = row["count"] if IS_POSTGRES else row["count"]
-    if count == 0:
-        seed_database(db)
+        # Seed data if users table is empty
+        cursor.execute("SELECT COUNT(*) as count FROM users")
+        row = cursor.fetchone()
+        count = row["count"] if row else 0
+        if count == 0:
+            seed_database(db)
 
-    db.close()
+        db.close()
+    except Exception as e:
+        logger.error(f"init_db error: {e}")
 
 def seed_database(db: DBConnection):
     cursor = db.cursor()
     now_iso = datetime.now(timezone.utc).isoformat()
+    is_pg = db.is_postgres
 
     # Create default admin user
     execute_query(cursor, """
@@ -258,7 +278,7 @@ def seed_database(db: DBConnection):
 
         # Insert monthly stats
         for m in monthly:
-            if IS_POSTGRES:
+            if is_pg:
                 execute_query(cursor, """
                 INSERT INTO monthly_stats (month, score) VALUES (?, ?)
                 ON CONFLICT (month) DO UPDATE SET score = EXCLUDED.score
@@ -280,7 +300,7 @@ def seed_database(db: DBConnection):
             ]))
             trend_json = json.dumps(v.get("trend", [v["score"] - 4, v["score"] - 2, v["score"]]))
 
-            if IS_POSTGRES:
+            if is_pg:
                 execute_query(cursor, """
                 INSERT INTO vendors (
                     id, name, category, email, location, status, contract_value,
@@ -315,7 +335,7 @@ def seed_database(db: DBConnection):
 
         # Insert orders
         for o in orders:
-            if IS_POSTGRES:
+            if is_pg:
                 execute_query(cursor, """
                 INSERT INTO orders (id, vendor_id, vendor, category, amount, date, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
